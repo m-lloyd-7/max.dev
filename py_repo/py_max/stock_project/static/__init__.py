@@ -1,0 +1,1 @@
+from py_max.stock_project.static.web_page_statics import WebPageStatics

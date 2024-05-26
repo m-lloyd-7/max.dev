@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "py_max"
+version = "0.1.0"
+description = ""
+authors = ["Max Lloyd <omlloyd07@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.2"
+openpyxl = "^3.1.2"
+matplotlib = "^3.8.4"
+scipy = "^1.13.0"
+scikit-learn = "^1.4.2"
+ipython = "^8.24.0"
+seaborn = "^0.13.2"
+statsmodels = "^0.14.2"
+requests = "^2.32.2"
+sqlalchemy = "^2.0.30"
+holidays = "^0.49"
+pyodbc = "^5.1.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
