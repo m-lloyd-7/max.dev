@@ -1,0 +1,1 @@
+C:\Users\User\source\repos\max.dev\rust_repo\target\debug\rust_repo.exe: C:\Users\User\source\repos\max.dev\rust_repo\src\data_structures\data_structures.rs C:\Users\User\source\repos\max.dev\rust_repo\src\main.rs C:\Users\User\source\repos\max.dev\rust_repo\src\read_database\read_database.rs

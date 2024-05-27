@@ -1,18 +1,19 @@
 use chrono::{DateTime, Utc};
 
+#[derive(Clone)]
 pub struct Stock {
-    ticker: String,
-    currency: String,
-    instrument_type: String,
-    exchange_name: String,
-    time_zone: String,
-    gmt_offset: i32,
-    timestamps: Vec<DateTime<Utc>>,
-    low: Vec<f64>,
-    high: Vec<f64>,
-    open: Vec<f64>,
-    close: Vec<f64>,
-    volume: Vec<f64>,
+    pub ticker: String,
+    pub currency: String,
+    pub instrument_type: String,
+    pub exchange_name: String,
+    pub time_zone: String,
+    pub gmt_offset: i32,
+    pub timestamps: Vec<DateTime<Utc>>,
+    pub low: Vec<f64>,
+    pub high: Vec<f64>,
+    pub open: Vec<f64>,
+    pub close: Vec<f64>,
+    pub volume: Vec<f64>,
 }
 
 impl Stock {

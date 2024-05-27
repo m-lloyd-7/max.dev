@@ -6,6 +6,9 @@ mod data_structures {
 }
 
 fn main() {
-    let stock_data = read_database::read_database::StockData::new();
-    stock_data.get_stocks();
+    let mut stock_data = read_database::read_database::StockData::new();
+    match stock_data.get_stocks() {
+        Ok(d) => d,
+        Err(_e) => (),
+    }
 }
