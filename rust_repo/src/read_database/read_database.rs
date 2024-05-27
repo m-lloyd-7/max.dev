@@ -88,7 +88,7 @@ impl StockData {
                     }
                     true => (),
                 }
-                self.retrieve_update_stock(&security_name, &mut rows)?;
+                self.retrieve_update_stock(&mut rows, &security_name)?;
             }
         }
         Ok(())
@@ -121,8 +121,8 @@ impl StockData {
 
     fn retrieve_update_stock(
         &mut self,
-        security_name: &String,
         cursor_row: &mut CursorRow,
+        security_name: &String,
     ) -> Result<(), Box<dyn Error>> {
         let mut matched_index = 0;
 
@@ -149,6 +149,8 @@ impl StockData {
         let stock_open = Self::get_stock_float(cursor_row, StockQueryMapping::Open)?;
         let stock_close = Self::get_stock_float(cursor_row, StockQueryMapping::Close)?;
         let stock_volume = Self::get_stock_float(cursor_row, StockQueryMapping::Volume)?;
+
+        // Getting the date for the stock -- different proceedure
         let date_time = Self::get_stock_date(cursor_row, StockQueryMapping::AsAtDate)?;
 
         // Adding data to the stocks attributes
@@ -220,6 +222,7 @@ impl StockData {
             StockQueryMapping::GmtOffSet => {
                 cursor_row.get_data(stock_query_col_map(stock_attribute), &mut stock_int_buffer)
             }
+
             _ => Ok(()),
         }?;
 
@@ -229,8 +232,8 @@ impl StockData {
     fn get_stock_float(
         cursor_row: &mut CursorRow,
         stock_attribute: StockQueryMapping,
-    ) -> Result<f64, Box<dyn Error>> {
-        let mut stock_float_buffer: f64 = 0.0;
+    ) -> Result<f32, Box<dyn Error>> {
+        let mut stock_float_buffer: f32 = 0.0;
         match stock_attribute {
             StockQueryMapping::High
             | StockQueryMapping::Low

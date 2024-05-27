@@ -9,11 +9,11 @@ pub struct Stock {
     pub time_zone: String,
     pub gmt_offset: i32,
     pub timestamps: Vec<DateTime<Utc>>,
-    pub low: Vec<f64>,
-    pub high: Vec<f64>,
-    pub open: Vec<f64>,
-    pub close: Vec<f64>,
-    pub volume: Vec<f64>,
+    pub low: Vec<f32>,
+    pub high: Vec<f32>,
+    pub open: Vec<f32>,
+    pub close: Vec<f32>,
+    pub volume: Vec<f32>,
 }
 
 impl Stock {
@@ -44,11 +44,11 @@ impl Stock {
     pub fn write_line(
         &mut self,
         timestamp: DateTime<Utc>,
-        low_price: f64,
-        high_price: f64,
-        open_price: f64,
-        close_price: f64,
-        trade_volume: f64,
+        low_price: f32,
+        high_price: f32,
+        open_price: f32,
+        close_price: f32,
+        trade_volume: f32,
     ) {
         self.timestamps.push(timestamp);
         self.low.push(low_price);
