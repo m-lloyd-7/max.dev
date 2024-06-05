@@ -7,8 +7,12 @@ mod data_structures {
 
 fn main() {
     let mut stock_data = read_database::read_database::StockData::new();
-    match stock_data.get_stocks() {
+    match stock_data.initialise_stock_data() {
         Ok(d) => d,
-        Err(_e) => (),
+        Err(_e) => println!("{}", _e),
+    }
+    match stock_data.get_stock_data() {
+        Ok(d) => d,
+        Err(_e) => println!("{}", _e),
     }
 }

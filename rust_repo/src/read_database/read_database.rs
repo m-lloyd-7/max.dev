@@ -1,7 +1,9 @@
 use crate::data_structures::data_structures::Stock;
 
 use chrono::{DateTime, Utc};
-use odbc_api::{ConnectionOptions, Cursor, CursorRow, Environment};
+use odbc_api::{
+    parameter::InputParameter, ConnectionOptions, Cursor, CursorRow, Environment, IntoParameter,
+};
 use std::error::Error;
 
 pub enum StockQueryMapping {
@@ -54,7 +56,16 @@ impl StockData {
             ,[exchangeName]
             ,[timeZone]
             ,[gmtOffSet]
-        FROM [max_dev].[stk].[yahooData]";
+        FROM [max_dev].[stk].[yahooData]
+        WHERE security = ?";
+
+    pub const UNIQUE_SECURITIES: &'static str = "SELECT DISTINCT security 
+            ,currency
+            ,instrumentType
+            ,exchangeName
+            ,timeZone
+            ,gmtOffSet
+        FROM  [max_dev].[stk].[yahooData]";
 
     pub fn new() -> Self {
         Self {
@@ -62,19 +73,22 @@ impl StockData {
         }
     }
 
-    pub fn get_stocks(&mut self) -> Result<(), Box<dyn Error>> {
-        // Creating a new environment
+    fn stock_query(&self, stock_name: &String) -> String {
+        let where_statement = format!("WHERE security = {stock_name}");
+        let choice_stock_query = Self::STOCK_QUERY.to_string();
+        let query = choice_stock_query + &where_statement;
+        return query;
+    }
+
+    pub fn initialise_stock_data(&mut self) -> Result<(), Box<dyn Error>> {
         let environment = Environment::new()?;
 
-        // Getting the database
         let connection = environment.connect_with_connection_string(
             Self::CONNECTION_STRING,
             ConnectionOptions::default(),
         )?;
 
-        // Executing the query
-        if let Some(mut cursor) = connection.execute(Self::STOCK_QUERY, ())? {
-            // Getting the rows from the cursor object
+        if let Some(mut cursor) = connection.execute(Self::UNIQUE_SECURITIES, ())? {
             while let Some(mut rows) = cursor.next_row()? {
                 // Getting the security name from the rows
                 let security_name = Self::get_stock_attr(&mut rows, StockQueryMapping::Security)?;
@@ -88,9 +102,36 @@ impl StockData {
                     }
                     true => (),
                 }
-                self.retrieve_update_stock(&mut rows, &security_name)?;
             }
         }
+        Ok(())
+    }
+
+    pub fn get_stock_data(&mut self) -> Result<(), Box<dyn Error>> {
+        // Iterating through the initialised stocks to write data into the stock object
+        for mut stock in &mut self.stock_values {
+            let stock_name: &'static String = &stock.ticker;
+
+            // Creating a new environment
+            let environment = Environment::new()?;
+
+            // Getting the database
+            let connection = environment.connect_with_connection_string(
+                Self::CONNECTION_STRING,
+                ConnectionOptions::default(),
+            )?;
+
+            let query = *self.stock_query(stock_name);
+
+            // Executing the query
+            if let Some(mut cursor) = connection.execute(&query, ())? {
+                // Getting the rows from the cursor object
+                while let Some(mut rows) = cursor.next_row()? {
+                    Self::update_stock(&mut stock, &mut rows)?;
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -117,29 +158,6 @@ impl StockData {
             gmt_offset,
         );
         Ok(stock)
-    }
-
-    fn retrieve_update_stock(
-        &mut self,
-        cursor_row: &mut CursorRow,
-        security_name: &String,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut matched_index = 0;
-
-        // Retrieving the stock from the list
-        for (index, stock) in self.stock_values.iter().enumerate() {
-            if stock.ticker == *security_name {
-                // Updating the value of the matched index
-                matched_index = index;
-            }
-        }
-
-        if let Some(stock) = self.stock_values.get_mut(matched_index) {
-            Self::update_stock(stock, cursor_row)?;
-            Ok(())
-        } else {
-            Err(Box::from("Failed retrieving stock value to update."))
-        }
     }
 
     fn update_stock(stock: &mut Stock, cursor_row: &mut CursorRow) -> Result<(), Box<dyn Error>> {
