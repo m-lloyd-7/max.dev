@@ -1,4 +1,4 @@
-from py_max.stock_project.stock_stripper import StockGrabber
+from py_max.yahoo_finance_reader.stock_stripper import StockGrabber
 import pandas as pd
 import datetime as dt
 import holidays
@@ -7,8 +7,8 @@ from typing import List, Optional, Any, Dict, Iterator
 from sqlalchemy.types import Integer, String, DateTime, Float
 
 
-from py_max.stock_project.config import logger
-from py_max.py_utils.sql import SQLYahooData, DatabaseConnector
+from py_max.yahoo_finance_reader.config import logger
+from py_max.py_utils.sql import SQLYahooData, DatabaseConnector, DBChoice
 
 
 class DataCapture:
@@ -73,13 +73,13 @@ class DataCapture:
             SQLYahooData.gmt_off_set: Integer,
         }
 
-        with DatabaseConnector(DatabaseConnector.LOCAL) as connection:
+        with DatabaseConnector(DBChoice.LOCAL) as connection:
             dataframe.to_sql(
                 SQLYahooData.table_name,
                 connection,
                 schema=SQLYahooData.schema,
                 index=False,
-                if_exists="replace",
+                if_exists="append",
                 dtype=dataframe_schema,
             )
 

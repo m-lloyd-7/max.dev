@@ -4,8 +4,8 @@ import numpy as np
 import json
 import datetime as dt
 from typing import List, Tuple, Dict, Any, Union, Set
-from py_max.stock_project.config import logger
-from py_max.stock_project.static import WebPageStatics
+from py_max.yahoo_finance_reader.config import logger
+from py_max.yahoo_finance_reader.static import WebPageStatics
 from py_max.py_utils.sql import SQLYahooData
 
 
