@@ -1,4 +1,15 @@
 from py_max.py_utils import ErrorLogger
+from py_max.finance_data.config.stocks import (
+    Apple,
+    Amazon,
+    Paypal,
+    Nvidia,
+    Google,
+    Tesla,
+    Meta,
+    StockBase,
+)
+
 
 logger: ErrorLogger = ErrorLogger(
     __name__,

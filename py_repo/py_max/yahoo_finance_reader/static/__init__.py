@@ -1,1 +1,0 @@
-from py_max.yahoo_finance_reader.static.web_page_statics import WebPageStatics
