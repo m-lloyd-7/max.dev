@@ -13,3 +13,7 @@ class SQLYahooData:
     time_zone: str = "TimeZone"
     exchange_name: str = "ExchangeName"
     gmt_off_set: str = "GmtOffSet"
+
+    # User defined
+    date: str = "Date"
+    market_mid: str = "MarketMid"

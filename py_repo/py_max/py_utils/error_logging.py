@@ -2,7 +2,7 @@ import logging
 
 
 class ErrorLogger:
-    def __init__(self, log_name: str, log_file: str):
+    def __init__(self, log_name: str):
         # Creating main inputs
         self._log_name: str = log_name
 
