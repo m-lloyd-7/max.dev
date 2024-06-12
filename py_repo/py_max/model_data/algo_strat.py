@@ -1,18 +1,15 @@
 import pandas as pd
 import numpy as np
 import datetime as dt
-import matplotlib.pyplot as plt
 
 from copy import deepcopy
 from typing import Optional, List, Dict, Union
 from sklearn.linear_model import LinearRegression
 from enum import Enum
 
-from py_max.finance_data import Stock, Amazon, StockBase
+from py_max.finance_data import Stock, Amazon, StockBase, Nvidia, Google
 from py_max.py_utils import SQLYahooData
 from py_max.model_data.config import log
-
-PLOT: bool = False
 
 
 # Guesses - narrowing window from a regression implies that the volatility is reducing => people will buy lower vol so price will rise
@@ -68,13 +65,22 @@ def width_variance(data_upper: pd.DataFrame, data_lower: pd.DataFrame) -> float:
 
 
 class Trade:
+
     POSITION: float = None
     NET_MARKET_VALUE: float = None
     LAST_TRADED_PRICE: float = None
 
-    def __init__(self, stock: Stock, trade_date: dt.datetime) -> None:
+    def __init__(
+        self,
+        stock: Stock,
+        trade_date: dt.datetime,
+        starting_capital: Optional[float] = None,
+    ) -> None:
         self.stock: Stock = stock
         self.trade_date: dt.datetime = trade_date
+
+        if starting_capital is not None:
+            self.NET_MARKET_VALUE = starting_capital
 
         # Storing the data for that particular day
         self.create_performance_data(self.trade_date)
@@ -106,23 +112,11 @@ class Trade:
         ].copy()
         time_data = time_data.loc[time_data[SQLYahooData.date] == time.date()].copy()
 
-        if time_data.empty:
-            # Refresh the data
-            self.create_performance_data(time)
-            time_data: pd.DataFrame = self.performance_data.loc[
-                self.performance_data[SQLYahooData.as_at_date] <= time
-            ].copy()
-
         # Data snapshot, taking the last value of the filtered data
         time_data_snapshot: pd.DataFrame = time_data.iloc[-1].copy()
 
         # Only really concerned about the time and the column that you execute on
         time_data = time_data[[SQLYahooData.as_at_date, BASED_ON]].copy()
-
-        if PLOT:
-            times: np.ndarray = time_data.index.to_numpy()
-            values: np.ndarray = time_data[BASED_ON].to_numpy()
-            plt.plot(times, values)
 
         regged_data: Dict[Regressions, pd.DataFrame] = self.regression_analysis(
             time_data
@@ -141,6 +135,8 @@ class Trade:
         lower_grad: float = gradient(reg_lower)
         end_minus_end, start_minus_start = width_variance(reg_upper, reg_lower)
 
+        ### - BASIC STRATEGY CONDITIONS - ###
+
         BUY: bool = False
         # Never buy if we are trending downwards on a small time scale
         if trend_grad < 0:
@@ -154,6 +150,52 @@ class Trade:
         else:
             pass
         return time_data_snapshot, BUY
+
+    def first_trade(
+        self, price: float, initial_capital: Optional[float] = None
+    ) -> None:
+        """
+        Executes the first trade of this security. We require an initial capital amount and a price to convert this to a position.
+        """
+        # Position * price = capital
+        if self.POSITION is not None:
+            log.LogWarning(
+                "Stock alredy has position. Check whether actually a first trade or not."
+            )
+
+        # Checking if we initalised any initial capital
+        if self.NET_MARKET_VALUE is not None:
+            initial_capital = self.NET_MARKET_VALUE
+        elif initial_capital is not None:
+            pass
+        else:
+            raise ValueError("No initial capital value has been given for this trade.")
+
+        # Setting all of the values for the trade
+        self.POSITION = initial_capital / price
+        self.NET_MARKET_VALUE = initial_capital
+        self.LAST_TRADED_PRICE = price
+
+    def execute_trade(
+        self, price: float, BUY: bool = True, FULL_SALE: bool = True
+    ) -> None:
+        """
+        Executing secondary trades of the security. NOTE: only binary strat has been implmented.
+        """
+        if not FULL_SALE:
+            raise NotImplementedError("Have not implemented non-binary strat.")
+
+        if BUY:
+            # If we are buying, the net market value is conserved (which in this case we are using as 'the amount of capital we can deploy')
+            # hence, position value should be zero and net market value is the conserved amount to allocate at that price
+            self.POSITION = self.NET_MARKET_VALUE / price
+        else:
+            # New value of the position is position * price
+            self.NET_MARKET_VALUE = self.POSITION * price
+            self.POSITION = 0
+
+        # Regardless of buy or sell, always overwrite the last traded price
+        self.LAST_TRADED_PRICE = price
 
     def regression_analysis(
         self, time_data: pd.DataFrame
@@ -185,13 +227,6 @@ class Trade:
                 index=predicting_times.index.to_numpy(),
             )
             output_data[regression] = regged_dataframe
-            if PLOT:
-                plt.plot(predicting_times.index.to_numpy(), reg_values)
-
-        if PLOT:
-            plt.ion()
-            plt.show(block=False)
-            plt.pause(1e-5)
 
         return output_data
 
@@ -268,54 +303,69 @@ def process_regression_type(
 
 
 class Portfolio:
+
+    # Need to run the data from the start time until the end time.
     open_time: int = 9
     end_time: int = 21
 
     def __init__(
         self,
         stocks: List[StockBase],
-        trade_day: Optional[dt.datetime] = None,
+        trade_dates: List[dt.datetime],
         CAPITAL: float = 1_000_000,
     ) -> None:
         self.stocks: List[StockBase] = stocks
-        self.trade_day: Optional[dt.datetime] = trade_day
+        self.trade_dates: List[dt.datetime] = trade_dates
         self.CAPITAL: float = CAPITAL
 
-        self.trades: List[Trade] = []
-        self.InitialiseTrades()
+        self.trades: Dict[dt.datetime, List[Trade]] = {}
 
-    def InitialiseTrades(self) -> None:
-        """Imports the data for the stocks, ready for testing."""
+    def initalise_trades(self, trade_date: dt.datetime) -> None:
+        """Imports the data for the stocks, ready for testing that day."""
+        # Clearing any existing data.
+        if self.trades != []:
+            self.trades = []
+
         for stock in self.stocks:
-            self.trades.append(Trade(Stock(stock, self.trade_day), self.trade_day))
+            # Initialising each trade with the same amount of capital (we are only testing strategy)
+            self.trades.append(
+                Trade(Stock(stock, trade_date), trade_date, self.CAPITAL)
+            )
             log.LogInfo(f"Initialised data for stock: {stock.ticker}")
 
     def test_data(self) -> None:
         """Testing the model for the data of the trade day."""
-        # Starting trading at 9:30 to have some daily data
-        for day in range(3):
-            current_time: dt.datetime = deepcopy(
-                self.trade_day + dt.timedelta(days=day)
-            ).replace(minute=30, hour=self.open_time)
 
-            end_time: dt.datetime = deepcopy(
-                self.trade_day + dt.timedelta(days=day)
-            ).replace(minute=0, hour=self.end_time)
+        # Running through each day
+        for date in self.trade_dates:
+            # Initalising the data for that trade date
+            self.initalise_trades(date)
 
-            if day == 1:
-                b = 1
+            # Running the sim for each trde
+            for trade in self.trades:
+                # Setting the current time (initally the start time of the sim, iterated through the loop)
+                current_time: dt.datetime = deepcopy(date).replace(
+                    minute=30, hour=self.open_time
+                )
 
-            # Running the daily data
-            BUY_STATUS: bool = False
-            while current_time < end_time:
-                for trade in self.trades:
+                # Cut off time of the simulation
+                end_time: dt.datetime = deepcopy(date).replace(
+                    minute=0, hour=self.end_time
+                )
+
+                # Running the daily data
+                BUY_STATUS: bool = False
+                while current_time < end_time:
+
+                    # Running the data for the day, at that time
                     trade_snap_shot, NEW_BUY_STATUS = trade.run_day(current_time)
 
+                    # If our position is less than zero, we are bust
                     if trade.POSITION is not None and trade.POSITION < 0:
-                        log.LogInfo("Have gone bust.")
+                        log.LogInfo(f"{trade.stock.name} has gone bust.")
                         break
 
-                    # If the buy statuses are not matching, update them
+                    # If the buy statuses are not matching, this means we either buy or we sell
                     if NEW_BUY_STATUS != BUY_STATUS:
                         # Updating the status
                         BUY_STATUS = NEW_BUY_STATUS
@@ -325,32 +375,26 @@ class Portfolio:
 
                         # Buy security
                         if BUY_STATUS == True:
-                            # Security not traded yet
+                            # If the security is not traded yet and we need to buy, we need to initialise.
                             if trade.POSITION is None:
-                                trade.POSITION = self.CAPITAL / price
-                                trade.NET_MARKET_VALUE = self.CAPITAL
-                                trade.LAST_TRADED_PRICE = price
-                            else:
-                                # Net market value is the net capital we can deploy if we previously sold
-                                trade.POSITION = trade.NET_MARKET_VALUE / price
-                                trade.LAST_TRADED_PRICE = price
+                                trade.first_trade(self.CAPITAL, price)
 
-                                # Do not need to alter the net market value in this case.
+                        # Else, we can just execute the trade.
+                        trade.execute_trade(price=price, BUY=BUY_STATUS)
 
-                        # Only can have a different buy status from False and reach this
-                        # point if bought in the past. We now sell
-                        if BUY_STATUS == False:
-                            trade.NET_MARKET_VALUE = trade.POSITION * price
-                            trade.POSITION = 0  # selling everything
-                            trade.LAST_TRADED_PRICE = price
+                    # Increment by a minute
+                    current_time += dt.timedelta(minutes=1)
 
-                # Increment by a minute
-                current_time += dt.timedelta(minutes=1)
-            log.LogInfo(f"Day {day} capital: {self.trades[0].NET_MARKET_VALUE}")
-            b = 1
+                # Logging the daily info
+                log.LogInfo(
+                    f"Day {date} capital for {trade.stock.name}: {trade.NET_MARKET_VALUE} - daily return is {(trade.NET_MARKET_VALUE / self.CAPITAL - 1)*100}%"
+                )
 
         return None
 
 
 if __name__ == "__main__":
-    Portfolio([Amazon], dt.datetime(year=2024, month=5, day=15)).test_data()
+    Portfolio(
+        [Nvidia, Google, Amazon],
+        [dt.datetime(year=2024, month=5, day=7 + iter) for iter in range(4)],
+    ).test_data()
