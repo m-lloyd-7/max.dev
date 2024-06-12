@@ -7,4 +7,5 @@ from py_max.finance_data.config import (
     Tesla,
     Google,
     Paypal,
+    Meta,
 )

@@ -53,7 +53,10 @@ class Stock:
         )
 
         # Adding sub-division for the dates
-        data[SQLYahooData.date] = data[SQLYahooData.as_at_date].dt.date
+        try:
+            data[SQLYahooData.date] = data[SQLYahooData.as_at_date].dt.date
+        except AttributeError:
+            data[SQLYahooData.date] = 0
 
         return data
 
