@@ -1,16 +1,20 @@
 import sqlalchemy as db
 import pandas as pd
+import json
 
 from sqlalchemy.engine.base import Engine, Connection
 from enum import Enum
-from typing import Callable
+from typing import Callable, Dict
 from functools import wraps
+
+KEYS_PATH: str = """C:/Users/User/Documents/Data/keys.json"""
+with open(KEYS_PATH) as file:
+    key_data: Dict[str, str] = json.load(file)
+    local_connection_string: str = key_data["DB_CONNECTION"]
 
 
 class DBChoice(Enum):
-    LOCAL: str = (
-        "mssql+pyodbc://DESKTOP-SPUR71A/max_dev?driver=ODBC+Driver+17+for+SQL+Server"
-    )
+    LOCAL: str = local_connection_string
 
 
 class DatabaseConnector:
